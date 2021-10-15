@@ -1,0 +1,30 @@
+{
+  "name": "keegol",
+  "version": "1.0.0",
+  "description": "game of life bro, it's the gAME OF LIIIIIFE",
+  "main": "dist/index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/kjleitz/keegol.git"
+  },
+  "keywords": [
+    "game",
+    "of",
+    "life",
+    "conway",
+    "gol"
+  ],
+  "author": "Keegan Leitz",
+  "license": "MIT",
+  "bugs": {
+    "url": "https://github.com/kjleitz/keegol/issues"
+  },
+  "homepage": "https://github.com/kjleitz/keegol#readme",
+  "private": false,
+  "dependencies": {
+    "typescript": "^4.4.4"
+  }
+}
