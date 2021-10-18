@@ -8,6 +8,10 @@ export interface WorldOptions {
   spawnNeighbors?: number;
 }
 
+export interface DrawCellFn {
+  (row: number, col: number, currentValue: number, nextValue: number): void;
+}
+
 export default class World {
   public readonly rowCount: number;
   public readonly colCount: number;
@@ -19,7 +23,13 @@ export default class World {
   private currentGrid: Grid;
   private nextGrid: Grid;
 
-  constructor({ rowCount, colCount, minNeighbors = 2, maxNeighbors = 3, spawnNeighbors = 3 }: WorldOptions) {
+  constructor({
+    rowCount,
+    colCount,
+    minNeighbors = 2,
+    maxNeighbors = 3,
+    spawnNeighbors = 3,
+  }: WorldOptions) {
     this.rowCount = rowCount;
     this.colCount = colCount;
     this.minNeighbors = minNeighbors;
@@ -76,6 +86,11 @@ export default class World {
     this.nextGrid = currentGrid;
   }
 
+  stepForwardProactive(): void {
+    this.adoptNextGrid();
+    this.populateNextGrid();
+  }
+
   stepForward(): void {
     this.populateNextGrid();
     this.adoptNextGrid();
@@ -107,11 +122,12 @@ export default class World {
     this.nextGrid.clearValues();
   }
 
-  iterate(mapper: (row: number, col: number, currentValue: number) => void): void {
+  iterate(mapper: DrawCellFn): void {
     for (let row = 0; row < this.rowCount; row++) {
       for (let col = 0; col < this.colCount; col++) {
         const currentValue = this.currentValueAt(row, col);
-        mapper(row, col, currentValue);
+        const nextValue = this.nextGrid.valueAt(row, col);
+        mapper(row, col, currentValue, nextValue);
       }
     }
   }
@@ -127,7 +143,7 @@ export default class World {
   //
   // That way, you only map over all the cells ONCE per "frame."
   //
-  iterateAndStepForward(mapper: (row: number, col: number, currentValue: number, nextValue: number) => void): void {
+  iterateAndStepForward(mapper: DrawCellFn): void {
     this.iterate((row, col, currentValue) => {
       const nextValue = this.nextValueAt(row, col, currentValue);
       this.nextGrid.setValueAt(row, col, nextValue);

@@ -1,8 +1,4 @@
-import World from "./World.js";
-
-interface DrawCellFn {
-  (row: number, col: number, currentValue: number, nextValue?: number): void;
-}
+import World, { DrawCellFn } from "./World.js";
 
 export default class Game {
   public world: World;
@@ -13,6 +9,7 @@ export default class Game {
   public hoverRow: number = -1;
   public initialized: boolean = false;
   public started: boolean = false;
+  public dirty: boolean = false;
   
   private lastSteppedForwardAt: number = 0;
   private dragging: boolean = false;
@@ -28,7 +25,7 @@ export default class Game {
 
     this.canvas = canvas;
     this.ctx = ctx;
-    this.framesPerSecond = 60;
+    this.framesPerSecond = 24;
     this._rowCount = 80;
     this._colCount = 125;
     this._cellWidthPx = 10;
@@ -163,38 +160,94 @@ export default class Game {
       this.dragging = false;
     });
 
-    const drawCell: DrawCellFn = (row, col, currentValue, _nextValue) => {
-      if (currentValue) {
+    const drawCell: DrawCellFn = (row, col, currentValue, nextValue) => {
+      if (currentValue) { // (it's currently alive)
+        if (nextValue) { // if it's going to stay alive...
+          if (currentValue === this.world.minNeighbors) {
+            this.ctx.fillStyle = "rgba(0, 0, 0, 0.25)";
+          } else {
+            this.ctx.fillStyle = "rgba(0, 0, 0, 0.65)";
+          }
+        } else { // if it's going to die...
+          if (currentValue === this.world.minNeighbors) {
+            this.ctx.fillStyle = "rgba(200, 0, 0, 0.25)";
+          } else {
+            this.ctx.fillStyle = "rgba(200, 0, 0, 0.65)";
+          }
+        }
+
         const x = col * this.cellWidthPx;
         const y = row * this.cellHeightPx;
-        if (currentValue === this.world.minNeighbors) {
-          this.ctx.fillStyle = "rgba(0, 0, 0, 0.25)";
-        } else {
-          this.ctx.fillStyle = "rgba(0, 0, 0, 0.65)";
-        }
         this.ctx.fillRect(x, y, this.cellWidthPx, this.cellHeightPx);
+      } else { // (it's currently dead)
+        if (nextValue) { // if it's going to spawn...
+          this.ctx.fillStyle = "rgba(0, 200, 0, 0.25)";
+          const x = col * this.cellWidthPx;
+          const y = row * this.cellHeightPx;
+          this.ctx.fillRect(x, y, this.cellWidthPx, this.cellHeightPx);
+        } else { // if it's going to stay dead...
+          // do nothing
+        }
       }
+
+      // if (currentValue) {
+      //   const x = col * this.cellWidthPx;
+      //   const y = row * this.cellHeightPx;
+      //   if (currentValue === this.world.minNeighbors) {
+      //     this.ctx.fillStyle = "rgba(0, 0, 0, 0.25)";
+      //   } else {
+      //     this.ctx.fillStyle = "rgba(0, 0, 0, 0.65)";
+      //   }
+      //   this.ctx.fillRect(x, y, this.cellWidthPx, this.cellHeightPx);
+      // }
 
       const hoveringOverThisCell = this.hoverRow === row && this.hoverCol === col;
       if (hoveringOverThisCell) {
         const x = col * this.cellWidthPx;
         const y = row * this.cellHeightPx;
-        this.ctx.fillStyle = "rgba(200, 0, 0, 0.5)";
+        this.ctx.fillStyle = "rgba(0, 0, 200, 0.5)";
         this.ctx.fillRect(x, y, this.cellWidthPx, this.cellHeightPx);
       }
     };
 
+    // const drawWorld = (msSincePageLoad: DOMHighResTimeStamp): void => {
+    //   if (this.shouldStepForward(msSincePageLoad)) {
+    //     this.drawFrameAndStepForward(drawCell, msSincePageLoad);
+    //   } else {
+    //     this.drawFrame(drawCell);
+    //   }
+    // };
+
     const drawWorld = (msSincePageLoad: DOMHighResTimeStamp): void => {
-      if (this.shouldStepForward(msSincePageLoad)) {
-        this.drawFrameAndStepForward(drawCell, msSincePageLoad);
-      } else {
-        this.drawFrame(drawCell);
+      if (this.dirty) {
+        this.world.populateNextGrid();
+        this.dirty = false;
       }
+
+      if (this.shouldStepForward(msSincePageLoad)) {
+        this.world.adoptNextGrid();
+        this.world.populateNextGrid();
+        this.lastSteppedForwardAt = msSincePageLoad;
+      }
+
+      this.drawFrame(drawCell);
     };
 
+    let fps = 0;
+    let fpsCounter = 0;
+    let prevSecond = 0;
+    let thisSecond = 0;
     const drawLoop = (msSincePageLoad: DOMHighResTimeStamp): void => {
       requestAnimationFrame(drawLoop);
       drawWorld(msSincePageLoad);
+      fpsCounter += 1;
+      prevSecond = thisSecond;
+      thisSecond = Math.floor(msSincePageLoad / 1000);
+      if (prevSecond !== thisSecond) {
+        fps = fpsCounter;
+        fpsCounter = 0;
+        console.log(fps);
+      }
     };
 
     requestAnimationFrame(drawLoop);
@@ -227,14 +280,17 @@ export default class Game {
   }
 
   spawnAtPx(x: number, y: number): number {
+    this.dirty = true;
     return this.world.spawnAt(this.rowFromY(y), this.colFromX(x));
   }
 
   killAtPx(x: number, y: number): number {
+    this.dirty = true;
     return this.world.killAt(this.rowFromY(y), this.colFromX(x));
   }
 
   toggleAtPx(x: number, y: number): number {
+    this.dirty = true;
     return this.world.toggleAt(this.rowFromY(y), this.colFromX(x));
   }
 }
