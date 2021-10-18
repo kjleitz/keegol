@@ -9,7 +9,7 @@ export default class Game {
   public hoverRow: number = -1;
   public initialized: boolean = false;
   public started: boolean = false;
-  public dirty: boolean = false;
+  public dirty: boolean = true;
   
   private lastSteppedForwardAt: number = 0;
   private dragging: boolean = false;
@@ -65,7 +65,7 @@ export default class Game {
   get cellHeightPx(): number { return this._cellHeightPx }
   set cellHeightPx(cellHeightPx: number) {
     this._cellHeightPx = cellHeightPx;
-    this.canvas.width = this.widthPx;
+    this.canvas.height = this.heightPx;
   }
 
   get widthPx(): number {
@@ -161,52 +161,27 @@ export default class Game {
     });
 
     const drawCell: DrawCellFn = (row, col, currentValue, nextValue) => {
-      if (currentValue) { // (it's currently alive)
-        if (nextValue) { // if it's going to stay alive...
-          if (currentValue === this.world.minNeighbors) {
-            this.ctx.fillStyle = "rgba(0, 0, 0, 0.25)";
-          } else {
-            this.ctx.fillStyle = "rgba(0, 0, 0, 0.65)";
-          }
-        } else { // if it's going to die...
-          if (currentValue === this.world.minNeighbors) {
-            this.ctx.fillStyle = "rgba(200, 0, 0, 0.25)";
-          } else {
-            this.ctx.fillStyle = "rgba(200, 0, 0, 0.65)";
-          }
-        }
-
+      if (currentValue) {
         const x = col * this.cellWidthPx;
         const y = row * this.cellHeightPx;
+        // staying alive? darker. gonna die? lighter.
+        this.ctx.fillStyle = nextValue ? "rgba(0, 0, 0, 0.65)" : "rgba(0, 0, 0, 0.45)";
         this.ctx.fillRect(x, y, this.cellWidthPx, this.cellHeightPx);
-      } else { // (it's currently dead)
-        if (nextValue) { // if it's going to spawn...
-          this.ctx.fillStyle = "rgba(0, 200, 0, 0.25)";
-          const x = col * this.cellWidthPx;
-          const y = row * this.cellHeightPx;
-          this.ctx.fillRect(x, y, this.cellWidthPx, this.cellHeightPx);
-        } else { // if it's going to stay dead...
-          // do nothing
-        }
       }
-
-      // if (currentValue) {
-      //   const x = col * this.cellWidthPx;
-      //   const y = row * this.cellHeightPx;
-      //   if (currentValue === this.world.minNeighbors) {
-      //     this.ctx.fillStyle = "rgba(0, 0, 0, 0.25)";
-      //   } else {
-      //     this.ctx.fillStyle = "rgba(0, 0, 0, 0.65)";
-      //   }
-      //   this.ctx.fillRect(x, y, this.cellWidthPx, this.cellHeightPx);
-      // }
 
       const hoveringOverThisCell = this.hoverRow === row && this.hoverCol === col;
       if (hoveringOverThisCell) {
-        const x = col * this.cellWidthPx;
-        const y = row * this.cellHeightPx;
+        const { cellWidthPx, cellHeightPx } = this;
+        const x = col * cellWidthPx;
+        const y = row * cellHeightPx;
         this.ctx.fillStyle = "rgba(0, 0, 200, 0.5)";
-        this.ctx.fillRect(x, y, this.cellWidthPx, this.cellHeightPx);
+        this.ctx.strokeStyle = "black";
+        this.ctx.lineWidth = 1;
+        this.ctx.fillRect(x, y, cellWidthPx, cellHeightPx);
+        this.ctx.beginPath();
+        this.ctx.arc(x + (cellWidthPx / 2), y + (cellHeightPx / 2), 10, 0, Math.PI * 2);
+        this.ctx.closePath();
+        this.ctx.stroke();
       }
     };
 
@@ -230,6 +205,7 @@ export default class Game {
         this.lastSteppedForwardAt = msSincePageLoad;
       }
 
+      this.ctx.clearRect(0, 0, this.widthPx, this.heightPx);
       this.drawFrame(drawCell);
     };
 
